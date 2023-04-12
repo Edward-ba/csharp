@@ -12,7 +12,7 @@
     <PackageReference Include="Microsoft.Build.Locator" Version="1.4.1" />
 
     <!-- Open .NET Projects in Roslyn workspace -->
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.0.0-3.final" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.0.0-3.final" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.6.0-1.final" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.6.0-1.final" />
   </ItemGroup>
 </Project>

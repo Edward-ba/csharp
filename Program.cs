@@ -6,66 +6,67 @@ using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
- 
-namespace SemanticsCS
-{
-    class Program
-    {
-        static void Main(string[] args)
-        {
-            var code = new StreamReader("Person.cs").ReadToEnd();
-            SyntaxTree tree = CSharpSyntaxTree.ParseText(code);
+using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
+using Microsoft.CodeAnalysis.FindSymbols;
+using Microsoft.CodeAnalysis.Text;
+using Microsoft.CodeAnalysis.MSBuild;
+using HelloWorld;
 
-//             SyntaxTree tree = CSharpSyntaxTree.ParseText(
-// @"using System;
-// using System.Collections.Generic;
-// using System.Text;
- 
-// namespace HelloWorld
-// {
-//     class Program
-//     {
-//         static void Main(string[] args)
-//         {
-//             Console.WriteLine(""Hello, World!"");
-//         }
-//     }
-// }");
+
+namespace SemanticsCS {
+    class Program {
+        static void Main(string[] args) {
+            //string solutionPath = "../samplecs/samplecs.sln";
+            // var workspace = MSBuildWorkspace.Create();
+            // var solution = workspace.OpenSolutionAsync(solutionPath).Result;
+            // foreach (var project in solution.Projects) {
+            //     foreach (var document1 in project.Documents) {
+            //         Console.WriteLine(project.Name + "\t\t\t" + document1.Name);
+
+            //     }
+            // }
+
+            var workspace = new AdhocWorkspace();
+
+            string projName = "NewProject";
+            var projectId = ProjectId.CreateNewId();
+            var versionStamp = VersionStamp.Create();
+            var projectInfo = ProjectInfo.Create(projectId, versionStamp, projName, projName, LanguageNames.CSharp);
+            var newProject = workspace.AddProject(projectInfo);
+            var programDocument = newProject.AddDocument("Program.cs", SourceText.From(new StreamReader("../samplecs/Program.cs").ReadToEnd()));
+            var document = newProject.AddDocument("Person.cs", SourceText.From(new StreamReader("../samplecs/Person.cs").ReadToEnd()));
+            
+            SyntaxTree tree = document.GetSyntaxTreeAsync().Result;
             var root = (CompilationUnitSyntax)tree.GetRoot();
+            
 
             var compilation = CSharpCompilation.Create("HelloWorld")
-                                               .AddReferences(
+                                                .AddReferences(
                                                     MetadataReference.CreateFromFile(
                                                         typeof(object).Assembly.Location))
-                                               .AddSyntaxTrees(tree);
+                                                .AddSyntaxTrees(tree);
 
             var model = compilation.GetSemanticModel(tree);
-            var nameInfo = model.GetSymbolInfo(root.Usings[0].Name);
-            var systemSymbol = (INamespaceSymbol)nameInfo.Symbol;
-
-            foreach (var ns in systemSymbol.GetNamespaceMembers())
-            {
-                Console.WriteLine(ns.Name);
-            }
-
-            var helloWorldString = root.DescendantNodes()
-                                       .OfType<LiteralExpressionSyntax>()
-                                       .First();
-
-            var literalInfo = model.GetTypeInfo(helloWorldString);
-
-            var stringTypeSymbol = (INamedTypeSymbol)literalInfo.Type;
 
             Console.Clear();
-            foreach (var name in (from method in stringTypeSymbol.GetMembers()
-                                                              .OfType<IMethodSymbol>()
-                                  where method.ReturnType.Equals(stringTypeSymbol) &&
-                                        method.DeclaredAccessibility ==
-                                                   Accessibility.Public
-                                  select method.Name).Distinct())
-            {
-                Console.WriteLine(name);
+
+            var members = root.DescendantNodes().OfType<MemberDeclarationSyntax>();
+            foreach (var member in members) {
+                var property = member as PropertyDeclarationSyntax;
+                if (property != null)
+                    Console.WriteLine("Property: " + property.Identifier);
+                var method = member as MethodDeclarationSyntax;
+                if (method != null)
+                    Console.WriteLine("Method: " + method.Identifier);
+                
+                var referencesToMethod = SymbolFinder.FindReferencesAsync(model.GetDeclaredSymbol(member), newProject.Solution).Result;
+                foreach (var reference in referencesToMethod) {
+                    foreach (var location in reference.Locations) {
+                        Console.WriteLine(location.Location.GetLineSpan());
+                    }
+                }
             }
+            
         }
     }
 }
